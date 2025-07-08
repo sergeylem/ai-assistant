@@ -1,0 +1,27 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Node modules (на всякий случай, если что-то вне фронта/бэка)
+node_modules/
+
+# Mac system files
+.DS_Store
+
+# Environment files
+.env
+.env.*
+
+# Docker artifacts
+*.local
+docker-compose.override.yml
+
+# IDE/editor files
+.vscode/
+.idea/
+*.swp
+
+# Output
+dist/
+build/
