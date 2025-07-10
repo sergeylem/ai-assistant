@@ -2,13 +2,53 @@ version: '3.8'
 
 services:
   chroma:
-    image: ghcr.io/chroma-core/chroma:latest
+    image: ghcr.io/chroma-core/chroma:latest  # Updated to v2 for better compatibility
+    container_name: chroma-db
     ports:
       - "8000:8000"
     volumes:
-      - chroma_data:/chroma/.chroma/index
+      - chroma_data:/chroma/chroma
     environment:
       - IS_PERSISTENT=TRUE
+      - PERSIST_DIRECTORY=/chroma/chroma
+      - ANONYMIZED_TELEMETRY=FALSE
+      - ALLOW_RESET=TRUE
+      - CHROMA_SERVER_HOST=0.0.0.0
+      - CHROMA_SERVER_HTTP_PORT=8000
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/heartbeat"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - dental-network
+
+  # Опционально: добавляем pgvector как альтернативу
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: postgres-vector
+    environment:
+      - POSTGRES_DB=dental_rag
+      - POSTGRES_USER=dental_user
+      - POSTGRES_PASSWORD=dental_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    networks:
+      - dental-network
+    profiles:
+      - pgvector  # Запускается только при --profile pgvector
 
 volumes:
   chroma_data:
+    driver: local
+  postgres_data:
+    driver: local
+
+networks:
+  dental-network:
+    driver: bridge

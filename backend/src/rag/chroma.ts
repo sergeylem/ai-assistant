@@ -1,90 +1,92 @@
-// src/rag/chroma.ts
-import { Chroma } from '@langchain/community/vectorstores/chroma';
+// src/rag/chroma.utils.ts - Упрощенная версия без сложной логики
 import { OpenAIEmbeddings } from '@langchain/openai';
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
+import { Document } from '@langchain/core/documents';
 
-export async function createChromaFromText(text: string, collectionName: string) {
-  const splitter = new RecursiveCharacterTextSplitter({ 
-    chunkSize: 500, 
-    chunkOverlap: 50 
-  });
-  
-  const docs = await splitter.createDocuments([text]);
-  
-  console.log('Creating embeddings...');
-  const embeddings = new OpenAIEmbeddings();
-  
-  // Check if collection exists
-  let store: Chroma;
-  
-  try {
-    // Try to connect to an existing collection
-    store = await Chroma.fromExistingCollection(embeddings, {
-      collectionName,
-      url: 'http://localhost:8000',
-    });
-    console.log('Connected to existing collection');
-    
-    // Add new documents to the existing collection
-    await store.addDocuments(docs);
-    console.log('Documents added to existing collection');
-    
-  } catch (err) {
-    console.log('Collection not found, creating new one...');
-    
-    // Create a new collection with documents
-    store = await Chroma.fromDocuments(docs, embeddings, {
-      collectionName,
-      url: 'http://localhost:8000',
-    });
-    console.log('New collection created with documents');
-  }
-  
-  return store;
-}
+export class ChromaUtils {
+  private static embeddings: OpenAIEmbeddings | null = null;
 
-// Additional function to clear the collection
-export async function clearChromaCollection(collectionName: string) {
-  try {
-    const embeddings = new OpenAIEmbeddings();
-    const store = await Chroma.fromExistingCollection(embeddings, {
-      collectionName,
-      url: 'http://localhost:8000',
-    });
-    
-    // Get all documents from the collection
-    const allDocs = await store.similaritySearch('', 1000); // Get maximum documents
-    
-    if (allDocs.length > 0) {
-      // If there are documents, delete them by filter (delete all)
-      await store.delete({
-        filter: {} // Empty filter means delete all documents
+  private static getEmbeddings(): OpenAIEmbeddings {
+    if (!this.embeddings) {
+      this.embeddings = new OpenAIEmbeddings({
+        openAIApiKey: process.env.OPENAI_API_KEY,
+        modelName: 'text-embedding-ada-002',
+        maxRetries: 3,
+        timeout: 30000,
       });
-      console.log(`Collection ${collectionName} cleared, deleted ${allDocs.length} documents`);
-    } else {
-      console.log(`Collection ${collectionName} is already empty`);
     }
-    
-  } catch (error) {
-    console.error('Error clearing collection:', error);
+    return this.embeddings;
   }
-}
 
-// Alternative function to delete the collection completely
-export async function deleteChromaCollection(collectionName: string) {
-  try {
-    // For complete collection deletion, you can use the direct ChromaDB API
-    const response = await fetch(`http://localhost:8000/api/v1/collections/${collectionName}`, {
-      method: 'DELETE'
+  // Разбиение текста на чанки
+  static async splitText(text: string): Promise<Document[]> {
+    console.log(`Splitting text of length: ${text.length} characters`);
+    
+    const splitter = new RecursiveCharacterTextSplitter({ 
+      chunkSize: 1000,  // Увеличили размер чанка
+      chunkOverlap: 100,
+      separators: ['\n\n', '\n', '. ', ' ', '']
     });
     
-    if (response.ok) {
-      console.log(`Collection ${collectionName} deleted successfully`);
-    } else {
-      console.error(`Failed to delete collection ${collectionName}:`, response.statusText);
+    const docs = await splitter.createDocuments([text]);
+    console.log(`Split into ${docs.length} chunks`);
+    
+    return docs;
+  }
+
+  // Проверка соединения с ChromaDB
+  static async testConnection(url: string = 'http://localhost:8000'): Promise<{
+    success: boolean;
+    message: string;
+  }> {
+    try {
+      // Простая проверка доступности ChromaDB
+      const response = await fetch(`${url}/api/v1/heartbeat`);
+      
+      if (response.ok) {
+        return {
+          success: true,
+          message: 'ChromaDB is accessible'
+        };
+      } else {
+        return {
+          success: false,
+          message: `ChromaDB returned status: ${response.status}`
+        };
+      }
+    } catch (error) {
+      return {
+        success: false,
+        message: `Cannot connect to ChromaDB: ${error.message}`
+      };
+    }
+  }
+
+  // Создание метаданных для документов
+  static createMetadata(filename: string, chunkIndex: number): Record<string, any> {
+    return {
+      source: filename,
+      chunk: chunkIndex,
+      timestamp: new Date().toISOString(),
+      type: 'clinic_document'
+    };
+  }
+
+  // Очистка текста перед обработкой
+  static cleanText(text: string): string {
+    return text
+      .replace(/\r\n/g, '\n')  // Нормализация переносов строк
+      .replace(/\s+/g, ' ')    // Убираем лишние пробелы
+      .trim();
+  }
+
+  // Проверка валидности текста
+  static isValidText(text: string): boolean {
+    if (!text || typeof text !== 'string') {
+      return false;
     }
     
-  } catch (error) {
-    console.error('Error deleting collection:', error);
+    const cleanedText = this.cleanText(text);
+    return cleanedText.length > 10; // Минимум 10 символов
   }
 }
