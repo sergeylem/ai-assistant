@@ -22,7 +22,7 @@ export class RagService implements OnModuleInit {
 
     this.embeddings = new OpenAIEmbeddings({
       openAIApiKey: process.env.OPENAI_API_KEY,
-      modelName: 'text-embedding-ada-002',
+      modelName: 'text-embedding-3-small',
     });
   }
 
@@ -107,7 +107,7 @@ export class RagService implements OnModuleInit {
 2. Если ответа нет в контексте — скажи "Извините, у меня нет такой информации в базе знаний"
 3. Будь дружелюбным и профессиональным
 4. Цены указывай в тенге
-5. Не придумывай информацию
+5. Не придумывай информацию, если нет в контексте вежливо попроси позвонить в клинику
 
 КОНТЕКСТ ИЗ БАЗЫ ЗНАНИЙ:
 ${context}
@@ -123,8 +123,29 @@ ${question}
     try {
       this.logger.log(`Adding documents to collection: ${collectionName}`);
 
-      // Создаем документы
-      const documents = texts.map(text => new Document({ pageContent: text }));
+      // const documents = texts.map(text => new Document({ pageContent: text })); // Без метаданных
+
+      // Создаем документы с метаданными
+      const documents = texts.map((text, index) => new Document({
+        pageContent: text,
+        metadata: {
+          source: 'clinic_documents',
+          chunk_id: index,
+          timestamp: new Date().toISOString(),
+          model_version: 'text-embedding-3-small'
+        }
+      }));
+
+      /* Метаданные для разных типов документов
+      { type: 'faq', category: 'лечение' }
+      { type: 'price', service: 'имплантация' }
+      { type: 'policy', section: 'возврат' }
+
+      // Тогда можно делать фильтрованный поиск:
+      const results = await vectorStore.similaritySearch(query, 4, {
+        type: 'price'  // Только прайс-листы
+      });
+      */
 
       if (!this.vectorStore) {
         // Создаем новую коллекцию для ChromaDB v2

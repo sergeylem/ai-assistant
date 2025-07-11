@@ -1,23 +1,8 @@
 // src/rag/chroma.utils.ts - Упрощенная версия без сложной логики
-import { OpenAIEmbeddings } from '@langchain/openai';
 import { RecursiveCharacterTextSplitter } from '@langchain/textsplitters';
 import { Document } from '@langchain/core/documents';
 
 export class ChromaUtils {
-  private static embeddings: OpenAIEmbeddings | null = null;
-
-  private static getEmbeddings(): OpenAIEmbeddings {
-    if (!this.embeddings) {
-      this.embeddings = new OpenAIEmbeddings({
-        openAIApiKey: process.env.OPENAI_API_KEY,
-        modelName: 'text-embedding-ada-002',
-        maxRetries: 3,
-        timeout: 30000,
-      });
-    }
-    return this.embeddings;
-  }
-
   // Разбиение текста на чанки
   static async splitText(text: string): Promise<Document[]> {
     console.log(`Splitting text of length: ${text.length} characters`);
