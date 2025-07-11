@@ -8,18 +8,32 @@ export class ChatService {
   constructor(
     private openai: OpenAIService,
     private ragService: RagService
-  ) {}
+  ) { }
 
   async handleMessage(message: string): Promise<string> {
     try {
       // Try to get an answer from the knowledge base first
       const ragResponse = await this.ragService.ask(message)
-      
+
+      // Список фраз, указывающих на отсутствие информации
+      const noInfoPhrases = [
+        'не знаю',
+        'у меня нет такой информации',
+        'не нашел информации',
+        'информация отсутствует',
+        'нет данных',
+        'не могу найти'
+      ];
+
+      // Проверяем, содержит ли ответ фразы об отсутствии информации
+      const hasNoInfo = noInfoPhrases.some(phrase =>
+        ragResponse.toLowerCase().includes(phrase.toLowerCase())
+      );
       // If RAG didn't give an answer or the answer is incomplete, use the general model
-      if (ragResponse.includes('не знаю') || ragResponse.length < 20) {
+      if (hasNoInfo || ragResponse.length < 20) {
         return await this.openai.ask(message)
       }
-      
+
       return ragResponse
     } catch (error) {
       console.error('Error in chat service:', error)

@@ -8,7 +8,8 @@ export class ChatController {
 
   @Post()
   async chat(@Body('message') message: string) {
-    const reply = await this.chatService.handleMessage(message)
+    // const reply = await this.chatService.handleMessage(message)
+    const reply = await this.chatService.askFromKnowledgeBase(message)
     return { reply }
   }
 }

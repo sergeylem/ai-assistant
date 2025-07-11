@@ -15,7 +15,7 @@ export class OpenAIService {
 
   async ask(question: string, useLatestModel = true): Promise<string> {
     try {
-      const model = useLatestModel ? 'gpt-4.1' : 'gpt-4o'
+      const model = useLatestModel ? 'gpt-4o-mini' : 'gpt-4o'
       
       const completion = await this.openai.chat.completions.create({
         model,
@@ -49,7 +49,7 @@ export class OpenAIService {
       }
 
       const completion = await this.openai.chat.completions.create({
-        model: 'gpt-4o',
+        model: 'gpt-4o-mini',
         messages: [
           { role: 'system', content: systemPrompts[contentType] },
           { role: 'user', content: prompt }
